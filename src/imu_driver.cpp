@@ -1,5 +1,6 @@
 #include <ros/ros.h>
 #include <sensor_msgs/Imu.h>
+#include <sensor_msgs/NavSatFix.h>
 #include <serial/serial.h>
 
 #include <vector>
@@ -195,7 +196,7 @@ double acc_scale(int32_t v)
 // ============================
 // batch处理核心
 // ============================
-void processBuffer(ros::Publisher& pub)
+void processBuffer(ros::Publisher& pub_imu, ros::Publisher& pub_gnss)
 {
     std::vector<ImuFrame> frames;
     frames.reserve(5);
@@ -263,7 +264,28 @@ void processBuffer(ros::Publisher& pub)
         msg.linear_acceleration.y = acc_scale(f.acc[1]);
         msg.linear_acceleration.z = acc_scale(f.acc[2]);
 
-        pub.publish(msg);
+        pub_imu.publish(msg);
+
+
+
+        // 发布 GNSS 数据
+        sensor_msgs::NavSatFix gnss_msg;
+        gnss_msg.header.stamp = ros::Time(t_ros);
+        gnss_msg.header.frame_id = "gnss_link";
+
+        gnss_msg.latitude = f.gps_lat;
+        gnss_msg.longitude = f.gps_lon;
+        gnss_msg.altitude = f.gps_h / 1000.0;
+
+        gnss_msg.position_covariance[0] = 1.0;
+        gnss_msg.position_covariance[4] = 1.0;
+        gnss_msg.position_covariance[8] = 1.0;
+        gnss_msg.position_covariance_type = sensor_msgs::NavSatFix::COVARIANCE_TYPE_DIAGONAL_KNOWN;
+
+        gnss_msg.status.status = sensor_msgs::NavSatStatus::STATUS_FIX;
+        gnss_msg.status.service = sensor_msgs::NavSatStatus::SERVICE_GPS;
+
+        pub_gnss.publish(gnss_msg);
     }
 }
 
@@ -275,8 +297,11 @@ int main(int argc, char** argv)
     ros::init(argc, argv, "imu_driver");
     ros::NodeHandle nh;
 
-    ros::Publisher pub =
+    ros::Publisher pub_imu =
         nh.advertise<sensor_msgs::Imu>("/imu/data", 200);
+
+    ros::Publisher pub_gnss =
+        nh.advertise<sensor_msgs::NavSatFix>("/gnss/fix", 100);
 
     serial::Serial ser("/dev/ttyUSB0", 115200,
         serial::Timeout::simpleTimeout(10));
@@ -294,7 +319,7 @@ int main(int argc, char** argv)
 
             buffer.insert(buffer.end(), tmp.begin(), tmp.end());
 
-            processBuffer(pub);
+            processBuffer(pub_imu, pub_gnss);
         }
 
         ros::spinOnce();
