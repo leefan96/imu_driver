@@ -12,25 +12,12 @@
 
 
 
-
-
-
-
-
-
 #define FRAME_LEN 134
 
 
 
-double acc_scale(int32_t v)
-{
-    return v * 10.0 / (double)(1LL<<31) * 9.81;
-}
 
-double deg2rad(double deg)
-{
-    return deg * M_PI / 180.0;
-}
+
 
 
 
@@ -215,7 +202,10 @@ double acc_scale(int32_t v)
 {
     return v * 10.0 / (double)(1LL<<31) * 9.81;
 }
-
+double deg2rad(double deg)
+{
+    return deg * M_PI / 180.0;
+}
 // ============================
 // batch处理核心
 // ============================
