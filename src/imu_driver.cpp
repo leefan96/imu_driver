@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/NavSatFix.h>
+#include <tf2/LinearMath/Quaternion.h>
 #include <serial/serial.h>
 
 #include <vector>
@@ -9,7 +10,29 @@
 #include <cstring>
 #include <algorithm>
 
+
+
+
+
+
+
+
+
 #define FRAME_LEN 134
+
+
+
+double acc_scale(int32_t v)
+{
+    return v * 10.0 / (double)(1LL<<31) * 9.81;
+}
+
+double deg2rad(double deg)
+{
+    return deg * M_PI / 180.0;
+}
+
+
 
 // ============================
 // IMU帧结构（最小必要字段）
@@ -255,6 +278,20 @@ void processBuffer(ros::Publisher& pub_imu, ros::Publisher& pub_gnss)
         sensor_msgs::Imu msg;
         msg.header.stamp = ros::Time(t_ros);
         msg.header.frame_id = "imu_link";
+
+
+        tf2::Quaternion q;
+        q.setRPY(
+            deg2rad(f.roll / 1000.0),
+            deg2rad(f.pitch / 1000.0),
+            deg2rad(f.yaw / 1000.0)
+        );
+
+        msg.orientation.x = q.x();
+        msg.orientation.y = q.y();
+        msg.orientation.z = q.z();
+        msg.orientation.w = q.w();
+
 
         msg.angular_velocity.x = gyro_scale(f.gyro[0]);
         msg.angular_velocity.y = gyro_scale(f.gyro[1]);
